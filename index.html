@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Malkoçoğlu Mobilya - AI Reels Editörü</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Inter:wght@300;400;600&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .phone-mockup {
+            width: 320px;
+            height: 640px;
+            border: 12px solid #1e293b;
+            border-radius: 40px;
+            overflow: hidden;
+            position: relative;
+            background: #000;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            flex-shrink: 0;
+        }
+
+        .scene {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .scene.active { opacity: 1; }
+
+        .image-container {
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-repeat: no-repeat;
+            transition: transform 0.3s ease, background-position 0.3s ease;
+        }
+
+        .zoom-animation {
+            animation: kenBurns 10s infinite alternate linear;
+        }
+
+        @keyframes kenBurns {
+            from { transform: scale(var(--base-scale, 1)); }
+            to { transform: scale(calc(var(--base-scale, 1) * 1.15)); }
+        }
+
+        .text-overlay {
+            position: absolute;
+            bottom: 100px;
+            left: 25px;
+            right: 25px;
+            color: white;
+            text-shadow: 0 4px 15px rgba(0,0,0,0.9);
+            font-family: 'Playfair Display', serif;
+            font-size: 24px;
+            line-height: 1.2;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .scene.active .text-overlay {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .progress-bar-container {
+            position: absolute;
+            top: 15px;
+            left: 10px;
+            right: 10px;
+            height: 3px;
+            z-index: 30;
+            display: flex;
+            gap: 4px;
+        }
+
+        .progress-segment {
+            flex: 1;
+            height: 100%;
+            background: rgba(255,255,255,0.3);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: white;
+            width: 0%;
+        }
+
+        .drop-zone {
+            border: 2px dashed #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .drop-zone.dragover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        input[type="range"] { accent-color: #3b82f6; }
+
+        /* AI Loading Animation */
+        .ai-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 flex items-center justify-center">
+
+    <div class="flex flex-col lg:flex-row items-start gap-8 max-w-7xl w-full">
+        
+        <!-- Sol Panel: AI Editör -->
+        <div class="flex-1 space-y-6 w-full lg:max-w-xl">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-blue-600 rounded-xl shadow-lg shadow-blue-200">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800 tracking-tight">AI Reels Stüdyo</h1>
+                    <p class="text-slate-400 text-xs font-medium uppercase tracking-widest">Malkoçoğlu Mobilya Tasarım</p>
+                </div>
+            </div>
+
+            <!-- AI Müzik Promptu -->
+            <div class="bg-white p-6 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">🤖</span>
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-widest">AI Müzik Promptu</span>
+                    </div>
+                </div>
+                <div class="relative">
+                    <textarea id="ai-prompt" rows="2" 
+                              placeholder="Örn: Modern mobilyalar için lüks ve sakin piyano tınıları..." 
+                              class="w-full bg-slate-50 border border-slate-200 text-sm rounded-2xl px-4 py-3 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all resize-none"></textarea>
+                    <button id="generate-music-btn" class="absolute right-2 bottom-2 bg-blue-600 text-white p-2 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                    </button>
+                </div>
+                <div id="ai-status" class="text-[11px] text-slate-400 font-medium px-1 flex items-center gap-2">
+                    <div id="ai-loader" class="hidden w-2 h-2 bg-blue-500 rounded-full ai-pulse"></div>
+                    <span id="ai-message">Videonun ruhuna uygun müziği tarif edin.</span>
+                </div>
+            </div>
+
+            <!-- Dosya Yükleme -->
+            <div id="drop-zone" class="drop-zone bg-white p-5 rounded-3xl text-center cursor-pointer hover:bg-slate-50 transition-all border-2 border-dashed group">
+                <div class="flex flex-col items-center">
+                    <div class="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">📸</div>
+                    <p class="text-sm font-bold text-slate-700">Kurgu Sahnelerini Ekle</p>
+                    <p class="text-[10px] text-slate-400">Sürükle, Tıkla veya Ctrl+V</p>
+                </div>
+                <input type="file" id="file-input" multiple accept="image/*" class="hidden">
+            </div>
+
+            <!-- Akış Listesi -->
+            <div class="bg-white p-6 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 space-y-4">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-50">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Sahne Akışı</span>
+                    <button id="clear-btn" class="text-xs text-red-400 font-bold hover:text-red-600">Temizle</button>
+                </div>
+                
+                <div id="steps-container" class="space-y-4 max-h-[350px] overflow-y-auto no-scrollbar">
+                    <!-- Dinamik İçerik -->
+                </div>
+
+                <div class="pt-4 border-t border-slate-50 flex items-center justify-between">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase">Video Süresi</span>
+                        <span id="total-time-display" class="text-2xl font-black text-slate-800">0.0s</span>
+                    </div>
+                    <button id="play-btn" class="bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold hover:bg-black active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-30 shadow-xl">
+                        <span id="btn-icon">▶</span> <span id="btn-text">Önizle</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sağ Panel: Instagram Reels Mockup -->
+        <div class="phone-mockup">
+            <div id="progress-container" class="progress-bar-container"></div>
+
+            <div id="scenes-container" class="w-full h-full relative bg-slate-900">
+                <div class="flex items-center justify-center h-full text-slate-600 text-[10px] text-center p-12 uppercase tracking-widest leading-loose">
+                    Lütfen sahneleri ekleyip<br>müziği tarif edin...
+                </div>
+            </div>
+
+            <!-- Instagram UI Elements -->
+            <div class="absolute right-3 bottom-36 flex flex-col gap-6 items-center z-40 text-white">
+                <div class="flex flex-col items-center gap-1"><span class="text-2xl">🤍</span><span class="text-[10px] font-bold">Lks</span></div>
+                <div class="flex flex-col items-center gap-1"><span class="text-2xl">💬</span><span class="text-[10px] font-bold">42</span></div>
+                <div class="flex flex-col items-center gap-1"><span class="text-2xl">✈️</span></div>
+            </div>
+            
+            <div class="absolute bottom-8 left-5 z-40 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-400 to-pink-600 p-[2px]">
+                    <div class="w-full h-full rounded-full bg-slate-900 flex items-center justify-center font-black text-white text-xs border-2 border-black">M</div>
+                </div>
+                <div class="text-white">
+                    <p class="text-xs font-bold">malkocoglu_mobilya</p>
+                    <p class="text-[10px] opacity-70 flex items-center gap-1">
+                        <span class="w-3 h-3">🎵</span> <span id="playing-music-name">AI Müzik Oluşturulmadı</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Audio Element -->
+    <audio id="bg-audio" loop></audio>
+
+    <script>
+        const apiKey = ""; // Gemini API key env tarafından sağlanır
+        let uploadedImages = [];
+        let isPlaying = false;
+        let currentSceneIndex = 0;
+        let playInterval;
+        let sceneTimeout;
+        let startTime;
+        let selectedMusicUrl = "";
+
+        // --- AI MUSIC GENERATION (SIMULATION VIA GEMINI) ---
+        const musicLibrary = {
+            luxury: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+            energetic: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+            lofi: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
+            corporate: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+            cinematic: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3"
+        };
+
+        async function generateAiMusic() {
+            const prompt = document.getElementById('ai-prompt').value;
+            if (!prompt) return alert("Lütfen bir müzik tarzı tarif edin!");
+
+            const loader = document.getElementById('ai-loader');
+            const message = document.getElementById('ai-message');
+            
+            loader.classList.remove('hidden');
+            message.innerText = "Yapay zeka müziği besteliyor...";
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: `Kullanıcı şu müzik promptunu yazdı: "${prompt}". Bu prompta en yakın kategoriyi seç ve SADECE şu kelimelerden birini JSON formatında döndür: luxury, energetic, lofi, corporate, cinematic. Ayrıca müziğin kısa bir ismini üret. Örnek: {"category": "lofi", "name": "Chill Furniture Vibe"}` }] }],
+                        generationConfig: { responseMimeType: "application/json" }
+                    })
+                });
+
+                const data = await response.json();
+                const result = JSON.parse(data.candidates[0].content.parts[0].text);
+                
+                selectedMusicUrl = musicLibrary[result.category];
+                document.getElementById('playing-music-name').innerText = result.name;
+                document.getElementById('bg-audio').src = selectedMusicUrl;
+                
+                message.innerHTML = `<span class="text-green-500 font-bold">✓ AI Müzik Hazır: ${result.name}</span>`;
+            } catch (error) {
+                message.innerHTML = `<span class="text-red-500">Hata: Müzik oluşturulamadı. Varsayılan müzik atandı.</span>`;
+                selectedMusicUrl = musicLibrary.corporate;
+                document.getElementById('bg-audio').src = selectedMusicUrl;
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        document.getElementById('generate-music-btn').addEventListener('click', generateAiMusic);
+
+        // --- DOSYA İŞLEMLERİ ---
+        const handleFiles = (files) => {
+            Array.from(files).forEach(file => {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        uploadedImages.push({
+                            url: e.target.result,
+                            text: uploadedImages.length === 0 ? "Yaşam Alanına Değer Katın" : "Modern Detaylar",
+                            duration: 2.5,
+                            scale: 1,
+                            yPos: 50
+                        });
+                        renderApp();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        };
+
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const stepsContainer = document.getElementById('steps-container');
+        const scenesContainer = document.getElementById('scenes-container');
+        const progressContainer = document.getElementById('progress-container');
+        const playBtn = document.getElementById('play-btn');
+        const totalTimeDisplay = document.getElementById('total-time-display');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+        window.addEventListener('paste', (e) => {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let i in items) if (items[i].kind === 'file') handleFiles([items[i].getAsFile()]);
+        });
+
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            uploadedImages = [];
+            renderApp();
+            stopPlayback();
+        });
+
+        // --- EDİTÖR ---
+        window.updateScale = (idx, val) => {
+            uploadedImages[idx].scale = parseFloat(val);
+            const el = document.querySelector(`#scene-${idx} .image-container`);
+            if(el) { el.style.setProperty('--base-scale', val); el.style.transform = `scale(${val})`; }
+        };
+        window.updateYPos = (idx, val) => {
+            uploadedImages[idx].yPos = val;
+            const el = document.querySelector(`#scene-${idx} .image-container`);
+            if(el) el.style.backgroundPosition = `center ${val}%`;
+        };
+        window.updateText = (idx, val) => {
+            uploadedImages[idx].text = val;
+            const el = document.querySelector(`#scene-${idx} .text-overlay`);
+            if(el) el.innerHTML = val.replace(/\n/g, '<br>');
+        };
+        window.updateDuration = (idx, val) => {
+            uploadedImages[idx].duration = Math.max(0.5, parseFloat(val) || 0.5);
+            calculateTotalTime();
+        };
+
+        function calculateTotalTime() {
+            const total = uploadedImages.reduce((sum, img) => sum + img.duration, 0);
+            totalTimeDisplay.innerText = total.toFixed(1) + "s";
+            return total;
+        }
+
+        function renderApp() {
+            stepsContainer.innerHTML = '';
+            scenesContainer.innerHTML = '';
+            progressContainer.innerHTML = '';
+
+            if (uploadedImages.length === 0) {
+                scenesContainer.innerHTML = '<div class="flex items-center justify-center h-full text-slate-600 text-[10px] text-center p-12 uppercase tracking-widest leading-loose">Lütfen sahneleri ekleyip<br>müziği tarif edin...</div>';
+                playBtn.disabled = true;
+                return;
+            }
+
+            playBtn.disabled = false;
+            calculateTotalTime();
+
+            uploadedImages.forEach((img, idx) => {
+                const step = document.createElement('div');
+                step.className = `p-4 rounded-3xl bg-slate-50 border border-slate-100 flex flex-col gap-3 transition-all`;
+                step.id = `step-${idx}`;
+                step.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <img src="${img.url}" class="w-10 h-10 rounded-xl object-cover shadow-sm">
+                        <input type="text" value="${img.text}" oninput="updateText(${idx}, this.value)" class="flex-1 bg-white border-none text-xs font-bold rounded-lg px-2 py-1 shadow-inner focus:ring-2 focus:ring-blue-100">
+                        <button onclick="uploadedImages.splice(${idx},1);renderApp()" class="text-red-300 hover:text-red-500">✕</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-bold text-slate-400 uppercase flex justify-between">Zoom <span>${img.scale}x</span></label>
+                            <input type="range" min="1" max="2" step="0.1" value="${img.scale}" oninput="updateScale(${idx}, this.value)" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-bold text-slate-400 uppercase flex justify-between">Dikey <span>${img.yPos}%</span></label>
+                            <input type="range" min="0" max="100" step="1" value="${img.yPos}" oninput="updateYPos(${idx}, this.value)" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                `;
+                stepsContainer.appendChild(step);
+
+                const scene = document.createElement('div');
+                scene.id = `scene-${idx}`;
+                scene.className = `scene`;
+                scene.innerHTML = `
+                    <div class="image-container zoom-animation" style="background-image: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.7)), url('${img.url}'); --base-scale: ${img.scale}; transform: scale(${img.scale}); background-position: center ${img.yPos}%"></div>
+                    <div class="text-overlay">${img.text.replace(/\n/g, '<br>')}</div>
+                `;
+                scenesContainer.appendChild(scene);
+
+                const seg = document.createElement('div');
+                seg.className = 'progress-segment';
+                seg.innerHTML = `<div id="fill-${idx}" class="progress-fill"></div>`;
+                progressContainer.appendChild(seg);
+            });
+            document.getElementById('scene-0').classList.add('active');
+        }
+
+        // --- PLAYBACK ---
+        function updatePlayback() {
+            if (!isPlaying) return;
+            const scene = uploadedImages[currentSceneIndex];
+            document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('[id^="step-"]').forEach(s => s.classList.remove('ring-2', 'ring-blue-500', 'bg-white'));
+
+            document.getElementById(`scene-${currentSceneIndex}`).classList.add('active');
+            const step = document.getElementById(`step-${currentSceneIndex}`);
+            step.classList.add('ring-2', 'ring-blue-500', 'bg-white');
+            step.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+            sceneTimeout = setTimeout(() => {
+                currentSceneIndex++;
+                if (currentSceneIndex < uploadedImages.length) updatePlayback();
+                else stopPlayback();
+            }, scene.duration * 1000);
+        }
+
+        function startPlayback() {
+            isPlaying = true; currentSceneIndex = 0;
+            document.getElementById('btn-text').innerText = "Durdur";
+            document.getElementById('btn-icon').innerText = "⏹";
+            if (selectedMusicUrl) {
+                const audio = document.getElementById('bg-audio');
+                audio.currentTime = 0; audio.play();
+            }
+            startTime = Date.now();
+            runProgress();
+            updatePlayback();
+        }
+
+        function stopPlayback() {
+            isPlaying = false;
+            clearTimeout(sceneTimeout); clearInterval(playInterval);
+            document.getElementById('btn-text').innerText = "Önizle";
+            document.getElementById('btn-icon').innerText = "▶";
+            document.getElementById('bg-audio').pause();
+        }
+
+        function runProgress() {
+            playInterval = setInterval(() => {
+                if (!isPlaying) return;
+                const elapsed = (Date.now() - startTime) / 1000;
+                let acc = 0;
+                uploadedImages.forEach((img, idx) => {
+                    const fill = document.getElementById(`fill-${idx}`);
+                    const start = acc, end = acc + img.duration;
+                    if (elapsed > end) fill.style.width = '100%';
+                    else if (elapsed > start) fill.style.width = ((elapsed - start) / img.duration) * 100 + '%';
+                    else fill.style.width = '0%';
+                    acc = end;
+                });
+            }, 16);
+        }
+
+        playBtn.addEventListener('click', () => isPlaying ? stopPlayback() : startPlayback());
+
+    </script>
+</body>
+</html>
